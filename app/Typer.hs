@@ -110,8 +110,9 @@ typeTerm lvl ctx term =
       -- traceM "extension"
       t1 <- typeTerm lvl ctx expr
       t2 <- typeTerm lvl ctx value
+      b <- freshVar lvl
       p <- freshVar lvl
-      constrain t1 (Record [] p)  
+      constrain t1 (Record [(name, b)] p)  
       traceM $ "ext result " ++ show (Record [(name, Pre t2)] p)
       tryExpand (Record [(name, Pre t2)] p)
 

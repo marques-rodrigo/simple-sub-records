@@ -14,7 +14,7 @@ lexer = Token.makeTokenParser style
     where ops = ["->",".","\\","λ","+","-","*","=",":"]
           style = haskellStyle {
               Token.reservedOpNames = ops,
-              Token.reservedNames = ["fun", "let", "rec", "in", "true", "false", "not", "and", "or", "then", "else"],
+              Token.reservedNames = ["extend", "with", "fun", "let", "rec", "in", "true", "false", "not", "and", "or", "then", "else"],
               Token.opStart = Token.opLetter style,
               Token.opLetter = oneOf "->.\\λ+-*=:"
           }
@@ -37,7 +37,7 @@ parseProgram :: String -> Either ParseError Program
 parseProgram = parse program "Parser"
 
 term :: Parser Term
-term =  letExpr <|> abstraction <|> ifThenElse <|> apps
+term =  letExpr <|> abstraction <|> ifThenElse <|> apps <|> withExtension
 
 literal :: Parser Term
 literal = Lit <$> natural
@@ -46,7 +46,7 @@ variable :: Parser Term
 variable = Var <$> (identifier <|> try (symbol "true") <|> try (symbol "false"))
 
 subtermNoSel :: Parser Term
-subtermNoSel = parens term <|> record <|> literal <|> variable
+subtermNoSel = parens term <|> record <|> literal <|> variable 
 
 subterm :: Parser Term
 subterm = do
@@ -54,12 +54,13 @@ subterm = do
     sels <- many selection
     return $ foldl Sel st sels
 
-subtermExtend :: Parser Term
-subtermExtend = do
-    st <- subtermNoSel
-    sels <- many selection
-    reservedOp "="
-    Ext (foldl Sel st (init sels)) (last sels) <$> term
+withExtension :: Parser Term
+withExtension = do
+    reserved "extend"
+    lhs <- subtermNoSel
+    reserved "with"
+    rhs <- braces member
+    return $ Ext lhs (fst rhs) (snd rhs)
 
 selection :: Parser Identifier
 selection = do
@@ -113,7 +114,7 @@ ifThenElse = do
 
 apps :: Parser Term
 apps = do
-    terms <- many1 (try subtermExtend <|> subterm)
+    terms <- many1 subterm
     return $ foldl1 App terms
 
 definition :: Parser Definition
